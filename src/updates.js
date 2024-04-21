@@ -1,25 +1,11 @@
-// @ts-check
-"use strict";
-
 const http = require("http");
 const semver = require("semver");
 const assert = require("assert");
-const log = require("pino")();
 const crypto = require("crypto");
 const requestIp = require("request-ip");
 
 const { assetPlatform } = require("./asset-platform");
 const { PLATFORM, PLATFORM_ARCH, PLATFORM_ARCHS, ENV } = require("./constants");
-
-// TODO: Nock does not support native fetch, use node-fetch instead
-//       This dance will hopefully not be necessary once nock figures
-//       out a way to mock Node's native fetch() implementation
-let fetch = global.fetch;
-
-if (process.env.NODE_ENV === "test") {
-  fetch = require("node-fetch").default;
-  log.level = "error";
-}
 
 class Updates {
   constructor({ token, cache }) {
@@ -36,14 +22,14 @@ class Updates {
       const start = new Date();
       this.handle(req, res)
         .catch((err) => {
-          log.error(err);
+          console.error(err);
           res.statusCode = err.statusCode || 500;
           const msg =
             ENV === "production" ? "Internal Server Error" : err.stack;
           res.end(msg);
         })
         .then(() => {
-          log.debug(
+          console.debug(
             {
               method: req.method,
               url: req.url,
@@ -108,10 +94,10 @@ class Updates {
         : "No updates found (needs asset containing win32-{x64,ia32,arm64} or .exe in public repository)";
       notFound(res, message);
     } else if (semver.lte(latest.version, version)) {
-      log.debug({ account, repository, platform, version }, "up to date");
+      console.debug({ account, repository, platform, version }, "up to date");
       noContent(res);
     } else {
-      log.debug(
+      console.debug(
         {
           account,
           repository,
@@ -142,18 +128,18 @@ class Updates {
       if (latest.darwin) latest[PLATFORM_ARCH.DARWIN_X64] = latest.darwin;
       if (latest.win32) latest[PLATFORM_ARCH.WIN_X64] = latest.win32;
 
-      log.debug({ key }, "cache hit");
+      console.debug({ key }, "cache hit");
       return latest[platform] || null;
     }
 
     let lock;
     if (this.cache.lock) {
-      log.debug({ key }, "lock acquiring");
+      console.debug({ key }, "lock acquiring");
       lock = await this.cache.lock(key);
-      log.debug({ key }, "lock acquired");
+      console.debug({ key }, "lock acquired");
       latest = await this.cache.get(key);
       if (latest) {
-        log.debug({ key }, "cache hit after lock");
+        console.debug({ key }, "cache hit after lock");
         return latest[platform] ? latest[platform] : null;
       }
     }
@@ -167,9 +153,9 @@ class Updates {
     }
 
     if (lock) {
-      log.debug({ key }, "lock releasing");
+      console.debug({ key }, "lock releasing");
       await lock.unlock();
-      log.debug({ key }, "lock released");
+      console.debug({ key }, "lock released");
     }
 
     return latest && latest[platform];
@@ -187,7 +173,7 @@ class Updates {
     const headers = { Accept: "application/vnd.github.preview" };
     if (this.token) headers.Authorization = `token ${this.token}`;
     const res = await fetch(url, { headers });
-    log.debug(
+    console.debug(
       { account, repository, status: res.status },
       "github releases api"
     );

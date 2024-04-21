@@ -24,7 +24,7 @@ npm install update-electron-app --save
 Call it from in your [main process] file:
 
 ```js
-require('update-electron-app')()
+require("update-electron-app")();
 ```
 
 And that's all it takes! To customize, see the [update-electron-app API].
@@ -44,17 +44,19 @@ your packaged app, and not in development. You can use
 the environment.
 
 ```javascript
-const { app, autoUpdater } = require('electron')
+const { app, autoUpdater } = require("electron");
 ```
 
 Next, construct the URL of the update server and tell
 [autoUpdater](https://electronjs.org/docs/api/auto-updater) about it:
 
 ```javascript
-const server = 'https://update.electronjs.org'
-const feed = `${server}/OWNER/REPO/${process.platform}-${process.arch}/${app.getVersion()}`
+const server = "https://update.electronjs.org";
+const feed = `${server}/OWNER/REPO/${process.platform}-${
+  process.arch
+}/${app.getVersion()}`;
 
-autoUpdater.setFeedURL(feed)
+autoUpdater.setFeedURL(feed);
 ```
 
 As the final step, check for updates. The example below will check every 10
@@ -62,8 +64,8 @@ minutes:
 
 ```javascript
 setInterval(() => {
-  autoUpdater.checkForUpdates()
-}, 10 * 60 * 1000)
+  autoUpdater.checkForUpdates();
+}, 10 * 60 * 1000);
 ```
 
 Once your application is [packaged](https://electronjs.org/docs/tutorial/application-distribution),
@@ -74,14 +76,15 @@ publish.
 ## Routes
 
 ### `/:owner/:repo/:platform/:version`
+
 ### `/:owner/:repo/win32/:version/RELEASES`
 
 ## Development
 
 You'll first need to have a running Redis server. There are two options:
 
-1) Locally: Install Redis locally and run it directly with `redis-server`. Guides can be found [here](https://redis.io/docs/getting-started/installation/install-redis-on-mac-os/).
-2) Docker: Install and run Redis with `docker run -p 6379:6379 -it redis/redis-stack-server:latest`.
+1. Locally: Install Redis locally and run it directly with `redis-server`. Guides can be found [here](https://redis.io/docs/getting-started/installation/install-redis-on-mac-os/).
+2. Docker: Install and run Redis with `docker run -p 6379:6379 -it redis/redis-stack-server:latest`.
 
 ```bash
 $ yarn

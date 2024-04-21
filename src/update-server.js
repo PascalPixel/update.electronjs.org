@@ -1,14 +1,11 @@
-#!/usr/bin/env node
-
-"use strict";
-
-require("dotenv-safe").config();
-
-process.title = "update-server";
-
-const Updates = require("../src/updates");
+const dotenv = require("dotenv")
 const ms = require("ms");
 const assert = require("assert");
+
+const Updates = require("./updates");
+
+dotenv.config();
+process.title = "update-server";
 
 //
 // Args
