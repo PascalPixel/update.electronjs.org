@@ -7,10 +7,8 @@ require("dotenv-safe").config();
 process.title = "update-server";
 
 const Updates = require("../src/updates");
-const redis = require("redis");
 const ms = require("ms");
 const assert = require("assert");
-const Redlock = require("redlock");
 
 //
 // Args
@@ -18,56 +16,58 @@ const Redlock = require("redlock");
 
 const {
   GH_TOKEN: token,
-  REDIS_URL: redisUrl = "redis://localhost:6379",
   PORT: port = 3000,
   CACHE_TTL: cacheTTL = "15m",
 } = process.env;
 assert(token, "GH_TOKEN required");
 
 //
-// Cache
+// In-Memory Cache with Expiration
 //
-async function getCache() {
-  const fixedRedisUrl = redisUrl.replace("redis://h:", "redis://:");
-  const client = redis.createClient({
-    url: fixedRedisUrl,
-    // Needed for compatibility with Redlock. However, it also requires all "modern" commands
-    // to be prefixed with `client.v4`.
-    // See also: https://github.com/redis/node-redis/blob/master/docs/v3-to-v4.md#legacy-mode
-    legacyMode: true,
-    socket: {
-      tls: true,
-      rejectUnauthorized: false,
-    },
-  });
-
-  await client.connect();
-  await client.ping();
-
-  client.on("error", (err) => console.log("Redis Client Error", err));
-
-  const redlock = new Redlock([client], {
-    retryDelay: ms("10s"),
-  });
+function getCache() {
+  let inMemoryCache = {};
 
   const cache = {
-    async get(key) {
-      const json = await client.v4.get(key);
-      return json && JSON.parse(json);
-    },
-    async set(key, value) {
-      const json = JSON.stringify(value);
+    get(key) {
+      const now = Date.now();
+      const item = inMemoryCache[key];
 
-      await client.v4.set(key, json, {
-        EX: ms(cacheTTL) / 1000,
-      });
+      if (item && now < item.expiry) {
+        return Promise.resolve(JSON.parse(item.value));
+      } else {
+        // Optionally, you could delete the expired item here
+        delete inMemoryCache[key];
+        return Promise.resolve(null); // Return null if the item is not found or is expired
+      }
     },
-    async lock(resource) {
-      return redlock.lock(`locks:${resource}`, ms("1m"));
+    set(key, value) {
+      const expiry = Date.now() + ms(cacheTTL);
+      inMemoryCache[key] = { value: JSON.stringify(value), expiry };
+      return Promise.resolve();
+    },
+    lock(resource) {
+      // Lock implementation remains the same as previous example
+      if (!inMemoryCache[`lock:${resource}`]) {
+        inMemoryCache[`lock:${resource}`] = {
+          locked: true,
+          expiry: Date.now() + ms(cacheTTL),
+        };
+        return Promise.resolve({
+          unlock() {
+            delete inMemoryCache[`lock:${resource}`];
+            return Promise.resolve();
+          },
+        });
+      }
+      return Promise.reject(new Error("Resource is locked"));
+    },
+    unlock(resource) {
+      delete inMemoryCache[`lock:${resource}`];
+      return Promise.resolve();
     },
   };
 
-  return cache;
+  return Promise.resolve(cache);
 }
 
 //
